@@ -38,11 +38,12 @@ class APC64Manager:
         self._device_button_listeners        = []
         self._channel_strip_button_listeners = []
         self._shift_button_listeners         = []
+        self._record_arm_orig_listeners         = []
 
         self._banco_device       = 0
         self._long_press_pending = {}
         self._track_state_2_modo = 0
-
+        self.record_arm_state = 0
     # ------------------------------------------------------------------
     # SETUP PRINCIPAL
     # ------------------------------------------------------------------
@@ -58,6 +59,14 @@ class APC64Manager:
         self._config_pads()
         self._config_matrix()
         self._config_modos()
+
+        record_arm = self.cs.get_control_by_name(C.RECORD_ARM)
+        self._record_arm_orig_listeners = self.get_listeners(record_arm)
+        boton = Boton(C.RECORD_ARM, 22, 3, self)
+        boton.accion_on  = lambda: self._on_record_arm(0)
+        boton.accion_continua = False
+        boton.crear_control(self.cs)
+
 
         self.log("APC64Manager: configurado correctamente")
 
@@ -137,9 +146,8 @@ class APC64Manager:
         self.limpiar_listeners(scene7)
         self.asignar_listeners(scene7, self._shift_button_listeners)
 
-        record_arm = self.cs.get_control_by_name(C.RECORD_ARM)
-        self.limpiar_listeners(record_arm)
-        record_arm.add_value_listener(self._on_record_arm)
+
+
 
     def _config_pads(self):
         for nombre in C.pads_fila(7):
@@ -192,8 +200,20 @@ class APC64Manager:
     # ------------------------------------------------------------------
 
     def _on_record_arm(self, value):
-        if value > 0:
+        self.toast("Hola %s" % self.record_arm_state)
+        record_arm = self.cs.get_control_by_name(C.RECORD_ARM)
+
+        if self.record_arm_state == 0:
+            self.record_arm_state = 1
+            self.asignar_listeners(record_arm, self._record_arm_orig_listeners)
+        else:
+            self.record_arm_state = 0
             self._config_track_state_buttons()
+            self.limpiar_listeners(record_arm)     # limpia listeners originales que quedaron
+            boton = Boton(C.RECORD_ARM, 22, 3, self)
+            boton.accion_on = lambda: self._on_record_arm(0)
+            boton.accion_continua = False
+            boton.crear_control(self.cs)
 
     def _on_pad_press(self, value):
         if value > 0:
